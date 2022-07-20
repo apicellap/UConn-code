@@ -1,0 +1,837 @@
+---
+title: "R Graphics and Statistics Tutorial Using Cannabis Data"
+author: Peter Apicella
+title-block-banner: true
+date: "`r Sys.Date()`"
+editor: visual
+format:
+  html:
+    toc: true
+    number-sections: true
+    theme: flatly
+---
+
+# Introduction
+
+-   A major theme in the R statistics community is reproducibility.
+    -   Because many scientists build and use R, many are concerned about the reproducibility crisis in science.
+    -   Therefore, from one angle, the consensus from this community is to transparently share and publish data sources and analysis methodologies.
+    -   I wrote and compiled this document so that Berkowitz lab members (and perhaps others) not only may be able to reproduce the analyses that I did as a graduate student but also inherit what I learned.
+-   This document is meant to serve as a tutorial for reproducing the analyses that I have performed using the data that I have published.
+-   Ideally after reading this document, a reader should be able to generate the same types of graphics and analyses using R on new data.
+-   All data for the following sections are retrieved from my [github data repository](https://github.com/apicellap/data).
+-   This document, which was built using Quarto (a type of markdown), initially runs the R code and prints the output per my instructions into an html format.
+    -   The grayed sections preceded and followed by (`) marks are known as code chunks.
+    -   Because these code chunks ran on my computer, they should work on any machine.
+        -   See the [Session information] section at the end of this document for R version information used to run initially create this document.
+-   Additionally, if you would like to download the original scripts (.R documents), then you can go to my [UConn code repository](https://github.com/apicellap/UConn-code).
+    -   To efficiently download all the files, click on the green button which says "Code".
+    -   Next, click "Download ZIP" and all the associated data files will download.
+    -   I categorize the files by which paper I used them for.
+        -   The HDG5 paper refers to the paper that Gang and I are working on (as of 7-19-22), but I may alter this directory name when the paper is eventually published.
+-   Because these files are located on github, I am able to update the scripts as I see fit.
+    -   If you think there is some kind of code error, please let me know. 
+    
+## If you are new to R or a beginner user
+- I would highly recommend reading [**Getting Started with R: An introduction for Biologists**](https://www.amazon.com/Getting-Started-R-Introduction-Biologists/dp/0198787847/ref=sr_1_1?crid=3QEO7XZVHMGB9&keywords=getting+started+with+r&qid=1658338669&sprefix=getting+started+with+%2Caps%2C219&sr=8-1).
+  - I read this last year as an intermediate-level R user and it hugely improved my skills. 
+  - I compiled my notes on it which can be found [here](https://fluffy-sundae-7d21c8.netlify.app/).
+- Another beginner's text is [**The New Statistics with R: An Introduction for Biologists**](https://www.amazon.com/New-Statistics-Introduction-Biologists/dp/0198798180/ref=sr_1_1?crid=1W4IRA7HORZZ7&keywords=the+new+statistics+with+r&qid=1658338892&sprefix=the+new+statistics+with+%2Caps%2C225&sr=8-1)
+  - In this book, the author has fairly strong opinions against the 'overuse' of p-values and urges scientists to put more emphasis on confidence intervals and effect sizes in their work. It was very interesting. 
+    - I have also compiled my notes on this book in a document that can be found [here](https://zingy-llama-670bfe.netlify.app).
+- Additionally, one more text, which I haven't read in its entirety is [**R in Action**](https://www.amazon.com/Action-Third-Robert-I-Kabacoff/dp/1617296058/ref=sr_1_1?crid=1J0LO2MKEAY9L&keywords=r+in+action&qid=1658339115&sprefix=r+in+acti%2Caps%2C627&sr=8-1).
+  - This book goes into much greater detail in certain advanced statistical methods that aren't covered in the other two books. 
+- Lastly, whether you are new to R or not, I would highly recommend the use of Quarto (or its predecessor, Rmarkdown) to record the code that you eventually write in an easily transferable format. 
+
+# Dual axis bar/line graph
+
+Install packages:
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+install.packages("dplyr",repos = "https://cran.us.r-project.org")
+install.packages("ggplot2",repos = "https://cran.us.r-project.org")
+install.packages("tidyverse",repos = "https://cran.us.r-project.org")
+install.packages("magrittr",repos = "https://cran.us.r-project.org")
+```
+
+Load package libraries:
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(magrittr)
+```
+
+Download data from github repository:
+
+```{r}
+urlfile1="https://raw.githubusercontent.com/apicellap/data/main/CtPharma_GG.csv"
+gg_data<-read.csv(url(urlfile1)) #data from CtPharma Gorilla Glue (gene expression & metabolite levels)
+
+urlfile2="https://raw.githubusercontent.com/apicellap/data/main/CW_data_recalc-2.csv"
+cw_data<-read.csv(url(urlfile2)) #data from Cherry Wine (gene expression & metabolite levels)
+```
+
+View 'Cherry Wine' dataframe:
+```{r}
+#| code-fold: true
+DT::datatable(cw_data,extensions = 'FixedColumns',
+           options = list(
+    dom = 't',
+    scrollX = TRUE,
+    fixedColumns = TRUE))
+```
+
+
+View 'Gorilla Glue' dataframe: 
+```{r}
+#| code-fold: true
+DT::datatable(gg_data,extensions = 'FixedColumns',
+           options = list(
+    dom = 't',
+    scrollX = TRUE,
+    fixedColumns = TRUE))
+```
+
+Manipulate dataframe variables (column names):
+
+```{r}
+# gg_data<-gg_data %>% rename_with( ~ paste0("GG.", .x)) #adds prefix to every column name in dataframe 
+# cw_data<-cw_data %>% rename_with( ~ paste0("CW.", .x)) 
+
+gg_data<-rename_with(gg_data, ~ paste0("GG.", .x)) #adds prefix to every column name in dataframe 
+cw_data<-rename_with(cw_data, ~ paste0("CW.", .x)) 
+
+```
+
+View one of the updated dataframes:
+
+```{r}
+#| code-fold: true
+DT::datatable(gg_data,extensions = 'FixedColumns',
+           options = list(
+    dom = 't',
+    scrollX = TRUE,
+    fixedColumns = TRUE))
+```
+
+Modify variable representing week in each dataframe to become identical:
+
+```{r}
+names(gg_data)[names(gg_data) == 'GG.week'] <- 'week' #changes name of variable
+names(cw_data)[names(cw_data) == 'CW.week'] <- 'week'
+intersect(names(gg_data), names(cw_data)) # print common variable among included dataframes
+```
+
+Link the two dataframes into one new dataframe:
+
+```{r}
+GG.CW=full_join(gg_data, cw_data)
+```
+
+View the new dataframe:
+```{r}
+#| code-fold: true
+DT::datatable(GG.CW,extensions = 'FixedColumns',
+           options = list(
+    dom = 't',
+    scrollX = TRUE,
+    fixedColumns = TRUE))
+```
+
+Create objects to take on expressions:
+
+```{r}
+Prim.y_title.001 <- expression(paste("Relative expression of ", italic("PT4")))
+ggtitle.001 <- expression(paste(italic("PT4"), " expression vs. CBG content in GG"))
+ggtitle.002 <- expression(paste(italic("PT4"), " expression"))
+
+```
+
+Plot gene expression in bar chart superimposed with a line graph of the metabolite data:
+
+```{r}
+GG.CBG.PT4<-ggplot(data=GG.CW) + #use dataframe 'GG.CW' in ggplot function 
+  geom_bar(aes(x=week, y=GG.PT4), #geom_bar inherits the dataframe GG.CW 
+           stat="identity",      #prevents R from doing new calculations on the data and just present them as they are 
+           fill="#ba5b2f", #color of the fill of the bar - this is a hexcode 
+           color = "#6b3d25", #color of the outline of the bar 
+           size = 1) + #thickness of the outline
+  geom_errorbar(aes(x=week, #argument is for standard error for the bar chart 
+                    ymin=GG.PT4 *1 -GG.PT4.se *1, #minimum for the standard error
+                    ymax=GG.PT4*1, #No error bar in the positive direction 
+                    width=.2), #width of the error bar
+                position = position_dodge(0.9), 
+                color = "#6b3d25", #color of the error bars
+                size=1.0, #size of the error bar 
+                linetype = 1) + #line style for error bar
+  geom_line(aes(x=week, #the line for the metabolite data (total CBG in this case)
+                y=GG.CBG*(4), #the scale on the y axis is multiplied by 4 
+                group=1), 
+            size=1) + #thickness of the line
+  geom_errorbar(aes(x=week, #error bars for the line 
+                    ymin=GG.CBG *4, #this set of error bars does not have a bar in the negative direction
+                    ymax=GG.CBG *4 +GG.CBG.se *4, 
+                    width=.2),
+                position = position_dodge(0.9), color = "black", size=1.0, linetype = 1)+
+  geom_point(size = 2.75, #size of the data point on the graph 
+             aes(x=week, y=GG.CBG*(4), 
+                 group=1)) +
+  scale_x_discrete(name ="Week", limits=c("1","2","3", "4", "5", "6", "7")) + #Program the exact x axis labels 
+  scale_y_continuous( #program the y axis ticks  
+    limits =c(-1,8), #y axis range
+    breaks=c(0,2,4,6,8), #tick marks labeled on y axis 
+    name= Prim.y_title.001, #left hand y axis label 
+    sec.axis = sec_axis(~ . *(1/4), #right hand (secondary) y axis scale is reduced by a factor or 0.25
+                        name="CBG content (% dry weight)")) + #secondary y axis label 
+  theme(axis.line.y.right = element_line(color = "black"), #theme elements are pretty self explanatory 
+        axis.title.y.right = element_text(color="black", size = 18),
+        axis.text.y.right = element_text(color="black", face="bold", size = 18),
+        axis.line.y.left = element_line(color = "black"),
+        axis.title.y.left = element_text(color = "#6b3d25", face="bold", size=18),
+        axis.text.y.left = element_text(color = "#6b3d25", face="bold", size =18),
+        axis.text.x = element_text(color="black", face="bold", size = 18),
+        axis.ticks = element_line(size = 1),
+        axis.ticks.length = unit(-0.25, "cm"),
+        axis.title.x=element_text(color="black",size=18)) +
+  theme(
+    axis.line = element_line(colour = "black"),
+    panel.border = element_rect(colour = "black", fill=NA, size=1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()) +
+  ggtitle(ggtitle.001) +
+  theme(plot.title = element_text(face="bold", size=19)) +
+  xlab("Weeks after Flower Initiation") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  annotate("text", #annotate plot with text 
+           x = 2, #x coordinate for annotation 
+           y = 4, #y coordinate for annotation 
+           label = "", #inscription for the annotation
+           size = 8,  #font size 
+           color = "#6b3d25") + #color of the annotation
+  annotate("text", x = 3, y = 6.5, label = "*", size = 8, color = "#6b3d25") +
+  annotate("text", x = 4, y = .5, label = "", size = 8, color = "#6b3d25") +
+  annotate("text", x = 5, y = .5, label = "", size = 8, color = "#6b3d25") +
+  annotate("text", x = 6, y =.51, label = "", size = 8, color = "#6b3d25") +
+  annotate("text", x = 7, y = 1, label = "", size = 8, color = "#6b3d25")
+GG.CBG.PT4 #call the name of the plot again to print it 
+```
+
+#Bar chart without the line superimposed:
+
+```{r}
+GG.CBG.PT4<-ggplot(data=GG.CW) + #use dataframe 'GG.CW' in ggplot function 
+  geom_bar(aes(x=week, y=GG.PT4), #geom_bar inherits the dataframe GG.CW 
+           stat="identity",      #prevents R from doing new calculations on the data and just present them as they are 
+           fill="#ba5b2f", #color of the fill of the bar - this is a hexcode 
+           color = "#6b3d25", #color of the outline of the bar 
+           size = 1) + #thickness of the outline
+  geom_errorbar(aes(x=week, #argument is for standard error for the bar chart 
+                    ymin=GG.PT4 *1 -GG.PT4.se *1, #minimum for the standard error
+                    ymax=GG.PT4*1, #No error bar in the positive direction 
+                    width=.2), #width of the error bar
+                position = position_dodge(0.9), 
+                color = "#6b3d25", #color of the error bars
+                size=1.0, #size of the error bar 
+                linetype = 1) + #line style for error bar
+  scale_x_discrete(name ="Week", limits=c("1","2","3", "4", "5", "6", "7")) + #Program the exact x axis labels 
+  scale_y_continuous( #program the y axis ticks  
+    limits =c(-1,8), #y axis range
+    breaks=c(0,2,4,6,8), #tick marks labeled on y axis 
+    name= Prim.y_title.001) + #left hand y axis label 
+  theme(axis.line.y.right = element_line(color = "black"), #theme elements are pretty self explanatory 
+        axis.title.y.right = element_text(color="black", size = 18),
+        axis.text.y.right = element_text(color="black", face="bold", size = 18),
+        axis.line.y.left = element_line(color = "black"),
+        axis.title.y.left = element_text(color = "#6b3d25", face="bold", size=18),
+        axis.text.y.left = element_text(color = "#6b3d25", face="bold", size =18),
+        axis.text.x = element_text(color="black", face="bold", size = 18),
+        axis.ticks = element_line(size = 1),
+        axis.ticks.length = unit(-0.25, "cm"),
+        axis.title.x=element_text(color="black",size=18)) +
+  theme(
+    axis.line = element_line(colour = "black"),
+    panel.border = element_rect(colour = "black", fill=NA, size=1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()) +
+  ggtitle(ggtitle.002) +
+  theme(plot.title = element_text(face="bold", size=19)) +
+  xlab("Weeks after Flower Initiation") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  annotate("text", #annotate plot with text 
+           x = 2, #x coordinate for annotation 
+           y = 4, #y coordinate for annotation 
+           label = "", #inscription for the annotation
+           size = 8,  #font size 
+           color = "#6b3d25") + #color of the annotation
+  annotate("text", x = 3, y = 6.5, label = "*", size = 8, color = "#6b3d25") +
+  annotate("text", x = 4, y = .5, label = "", size = 8, color = "#6b3d25") +
+  annotate("text", x = 5, y = .5, label = "", size = 8, color = "#6b3d25") +
+  annotate("text", x = 6, y =.51, label = "", size = 8, color = "#6b3d25") +
+  annotate("text", x = 7, y = 1, label = "", size = 8, color = "#6b3d25")
+GG.CBG.PT4 #call the name of the plot again to print it 
+```
+
+# Analysis of variance
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+install.packages("agricolae",repos = "https://cran.us.r-project.org")
+install.packages("ggfortify",repos = "https://cran.us.r-project.org")
+```
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+library(agricolae)
+library(ggfortify)
+
+```
+
+Download data from the CtPharma experiment with methyl jasmonate applications on 'White Tangy Haze' plants:
+
+```{r}
+urlfile3="https://raw.githubusercontent.com/apicellap/data/main/CtPharma_dwt.csv"
+MJ<-read.csv(url(urlfile3))
+names(MJ) #print column names (variables)
+```
+
+Modify name of one variable for percent weight of metabolite:
+
+```{r}
+names(MJ)[names(MJ) == 'X.DWT'] <- 'perc.dwt' #changes name of variable
+names(MJ) 
+```
+
+Create new column to encompass decimal form of percentage:
+
+```{r}
+MJ$dec.dwt <- (MJ$perc.dwt/100)
+```
+
+Arcsin transformation of decimal-form data:
+
+```{r}
+MJ$ASin <-asin(sqrt(MJ$dec.dwt))
+head(MJ) #display top six rows of the dataframe
+```
+
+Subset data into further subsetted dataframes:
+
+```{r}
+THC <- subset(MJ, METAB=="THC") #create new dataframe, THC, when METAB is THC 
+
+THC_wk1 <- subset(THC, WEEK=="1") #subset the THC dataframe into new dataframe to isolate the timeframe 
+```
+
+Create model and perform ANOVA:
+
+```{r}
+mod1 <- lm(ASin ~ CONC, THC_wk1) #create linear model of the data (one way ANOVA design)
+summary(mod1) #perform ANOVA
+```
+
+Check assumption that the data are normally distributed:
+
+```{r}
+MJ$CONC <- as.factor(MJ$CONC)
+autoplot(mod1, which = c(2), ncol=1, smooth.colour = NA)
+```
+
+The assumption of normality appears to be met
+
+Check assumption of equal variance (among groups):
+
+```{r}
+autoplot(mod1, which = c(1,3), ncol=2, smooth.colour = NA)
+```
+
+This assumption appears to be met.
+
+Perform Fisher's LSD test:
+
+```{r}
+lsd1 <- LSD.test(mod1, "CONC", group=TRUE)
+lsd1 #see $groups section 
+```
+
+Housekeeping for dataframes:
+
+```{r}
+lsd_thc.wk1 <- lsd1$groups #create new dataframe that encapsulates the LSD output 
+CONC <- as.list(c(1000,0,500,100)) 
+lsd_thc.wk1$CONC <- CONC #create new column that will inherit the list, 'CONC' 
+lsd_thc.wk1$CONC <- as.numeric(lsd_thc.wk1$CONC) #coerce the variable CONC to be numeric so that it can be sorted numerically
+lsd_thc.wk1 <- arrange(lsd_thc.wk1, CONC) #arrange the dataframe by CONC by least to greatest value 
+lsd_thc.wk1 %>% mutate_if(is.character, str_to_upper) -> lsd_thc.wk1 #change any character in the dataframe to uppercase 
+lsd_thc.wk1
+```
+
+# Boxplots
+
+This section aims to plot the metabolite (in this case, THC) data in boxplots together with the Fisher's LSD output from the model, mod1.
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+install.packages("ggpubr",repos = "https://cran.us.r-project.org")
+```
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+library(ggpubr)
+```
+
+Create some objects to feed into code for the boxplot:
+
+```{r}
+colors <- c("#00AFBB","#E7B800", "#808080", "#FC4E07") #hexcodes for colors of boxplots
+names(colors) = unique(THC_wk1$CONC) #gives names to the colors 
+```
+
+```{r}
+w1THC <-ggboxplot(THC_wk1, x = "CONC", y = "perc.dwt", 
+                  color = "CONC", #assign colors to the CONC variable
+                  palette = colors, #use the object created in the previous code chunk
+                  add = "jitter", #adds random noise into the datapoints so that they disperse randomly 
+                  xlab = "Concentration of MeJA (µM)" , 
+                  ylab = "THC content (% dry weight)",
+                  title = "Week 1",
+                  ylim = c(2,3.5), #y axis range
+                    yticks.by = 0.25, #y axis tick increment
+                  legend.title = "Concentration (µM)") +  rremove("legend") +
+  theme(plot.title = element_text(size= 14, hjust = 0.5, family = "Arial", face = "bold")) +
+  theme(
+    panel.border = element_rect(colour = "black", fill=NA, size=1.5),
+    axis.ticks = element_line(size = 1),
+    axis.ticks.length = unit(-0.25, "cm"),
+    axis.line.x = element_blank(),
+    axis.line.y = element_blank(),
+    axis.line.y.left = element_line(color = "black"),
+    axis.title.y.left = element_text(color="black", face="bold", size = 16, family = "Arial"),
+    axis.text.y.left = element_text(color="black", face="bold", size = 16, family = "Arial",margin=unit(c(0.5,0.5,0.5,0.5), "cm")),
+    axis.text.x = element_text(color="black", face="bold", size = 16, family = "Arial", margin=unit(c(0.5,0.5,0.5,0.5), "cm")),
+    axis.title.x=element_text(color="black", face="bold",size = 16, family = "Arial")) + 
+  
+annotate("text", #annotate the plot with text
+         x = 1:4, #respective x coordinate for each label 
+         y = c(3.25,2.8,3,3.2), #respective y coordinate for each label
+         label = lsd_thc.wk1$groups, #list of labels to corresponding to x positions 1:4 
+         size = 6, #font size 
+         fontface = "bold")
+w1THC
+
+# ggsave("THC-plot.jpeg", device = "jpeg", units="in", width=6, height=5, dpi=300) - code for saving the plot 
+```
+
+# Pearson's Correlation Matrix
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+install.packages("corrplot",repos = "https://cran.us.r-project.org")
+install.packages("Hmisc",repos = "https://cran.us.r-project.org")
+
+```
+
+```{r echo=T, message=FALSE, warning=FALSE, results='hide'}
+library(corrplot)
+library(Hmisc)
+```
+
+Download gene expression and metabolite data for the CtPharma experiment on 'Gorilla Glue' (GG):
+
+```{r}
+urlfile4="https://raw.githubusercontent.com/apicellap/data/main/CtPharma_age_corr.csv"
+GG_mat<-read.csv(url(urlfile4)) #data from CtPharma Gorilla Glue (gene expression & metabolite levels)
+head(GG_mat)
+```
+
+:::{.callout-note}
+Data in this dataframe were pre-calculated in excel when I was a graduate student. However, the general rule of thumb is to input the original dataframe into R and perform all data wrangling and calculations through code. 
+:::
+
+
+Dataframe modifications:
+
+```{r}
+names(GG_mat)[names(GG_mat) == 'THC'] <- 'perc.THC' #changes name of variable
+names(GG_mat)[names(GG_mat) == 'CBG'] <- 'perc.CBG'
+
+GG_mat$dec.THC <- (GG_mat$perc.THC/100) #creates new column where percentage is converted to decimal
+GG_mat$dec.CBG <- (GG_mat$perc.CBG/100)
+
+GG_mat$THC <-asin(sqrt(GG_mat$dec.THC)) #arcsin transformation calculation
+GG_mat$CBG<-asin(sqrt(GG_mat$dec.CBG))
+head(GG_mat)
+```
+
+```{r}
+x <- subset(GG_mat, select = c(2:9, 14:15))
+GGcor <-rcorr(as.matrix(x))
+GGcor
+```
+
+```{r error=FALSE, message = FALSE}
+#tiff(file="GG_arcsin-matrix.tiff",
+#     width=6, height=4, units="in", res=200)
+
+GGcor$P[is.na(GGcor$P)]<-1
+
+corrplot(GGcor$r, #strength of correlation (info for size and color of circle)
+         method="circle", #each correlation represented by a circle 
+         type="upper", #orientation of plot (upper portion of the diagnonal)
+         p.mat=GGcor$P, #p values for correlation, is the correlation a statistically significant, if so, then how significant? 
+         insig="label_sig", #when there isn't a significant correlation 
+         pch.col="white", #color of symbol 
+         sig.level = c(.001,.01,.05), #p value cutoff points 
+         pch.cex=1.25, #size of symbol
+         tl.srt = 45) #tilt labels above graph at a 45˚ angle 
+
+#dev.off()
+```
+
+# Bar plot with two variables
+
+Download data file that concerns types of trichomes and their densities in wild type and mutant tobacco leaves:
+
+```{r}
+urlfile5="https://raw.githubusercontent.com/apicellap/data/main/tri_count.csv"
+tri_ct<-read.csv(url(urlfile5)) 
+head(tri_ct)
+```
+
+```{r}
+tri_mean<-summarise(
+  group_by(tri_ct, tissue, tri_type, .groups = TRUE), 
+  obs = n(), #counts the number of observations by group
+  Mcount = mean(count), #
+  SEcount =(sd(count))/sqrt(obs)) #calculate standard error for each group
+tri_mean
+```
+
+Data modifications and objects:
+
+```{r}
+tri_mean$tri_type <- as.factor(tri_mean$tri_type) #coerce tri_type variable into a factor 
+
+type1 <- filter(tri_ct, tri_type == "1") #subset the data 
+type2 <- filter(tri_ct, tri_type == "2")
+
+geneA <- expression(paste(bold("wt"))) 
+geneB <- expression(paste(bolditalic("OE-CsHDG5-8")))
+```
+
+Plot the data in a bar plot (`geom_col()` is used):
+
+```{r}
+p<-ggplot(data = tri_mean, 
+          aes(x = tri_type, 
+              y=Mcount, 
+              fill= tissue)) + #add color by tissue variable which refers to ctl (wt) or oe_hdg5-8 
+  geom_col(width = 0.8, position = position_dodge2(1), show.legend = TRUE) + #another form of bar plot (col or column plot)
+  geom_errorbar(aes(x = tri_type, ymin = Mcount - SEcount, ymax = Mcount + SEcount, width=0.1),
+                position = position_dodge(width=.8), color="black", size=1.0, linetype = 1) +
+  scale_fill_discrete(name = "", labels = c(geneA, geneB)) +  #modify the labels titles in the legend 
+  ylab("Trichome Number") + 
+  xlab("") + 
+  scale_x_discrete(limits = c("1", "2"),  #refers to data in the dataframe
+                   labels = c("Type 1", "Type 2")) + #modify the labels on the x axis respectively for the limits 
+  scale_y_continuous(
+    limits = c(0,225), #y axis range 
+    breaks=seq(0,225, by = 25)) + #in this y axis range, increments increase by 25 
+theme(
+  axis.line.y.left = element_line(color = "black"), #color of left axis line
+  axis.title.y.left = element_text(color="black", face="bold", size=18), #color, face, and size of y axis title
+  axis.text.y.left = element_text(color="black", face="bold", size =18), #color, face, and size of y axis values
+  axis.text.x = element_text(color="black", face="bold", size = 18),  #color, face, and size of y axis values
+  axis.ticks = element_line(size = 1), #size of tick on x and y axes
+  axis.ticks.length = unit(-0.25, "cm"), #makes ticks go inside the plot 
+  axis.title.x=element_text(color="black",size=18), #color, size of x axis title (not included)
+  plot.title = element_text(face="bold", size=19, hjust = 0.5), 
+  plot.caption = element_text(size=12.5, colour ="red"),
+  plot.tag = element_text(color="black",face = "bold", size=18),
+  axis.line = element_line(colour = "black"),
+  legend.position = "bottom",
+  legend.title = element_text(size = 14, face ="bold"),
+  legend.text = element_text(size = 16, face ="bold"),
+  panel.border = element_rect(colour = "black", fill=NA, size=1),
+  panel.grid.minor = element_blank(),
+  panel.background = element_blank()) + 
+  annotate("text", x =1.2, y = 210, label = "**", size = 8) 
+p
+```
+
+# Data cleaning
+
+Download data on Reactive oxygen species (ros) generation:
+
+```{r}
+urlfile6="https://raw.githubusercontent.com/apicellap/data/main/nasty_ros.csv"
+nas_ros<-read.csv(url(urlfile6)) 
+```
+
+View dataframe:
+```{r}
+#| code-fold: true
+DT::datatable(nas_ros,extensions = 'FixedColumns',
+           options = list(
+    dom = 't',
+    scrollX = TRUE,
+    fixedColumns = TRUE))
+```
+
+-   This dataset, which Gang Ma provided to me, has a wide format.
+    -   It also possesses characteristics of what is known as 'untidy' data.
+    -   There is nothing inherently wrong with this spreadsheet is set up.
+    -   However, R will be unable to read the data.
+    -   Therefore, it must be 'cleaned' and converted into a long format through multiple steps.
+    -   Additionally, it is highly recommended to not modify an original spreadsheet.
+        -   Instead, the spreadsheet can be reproduced in R and modified as an R dataframe.
+            -   R also has the benefit of automating many time consuming aspects of data cleaning.
+    -   The following code chunk is by no means a one-sized fits all approach and there is no one way to accomplish this.
+    -   I just try to keep things simple and choose the path of least resistance when I do anything in R.
+
+Subset two elements of the wide-formatted data frame:
+
+```{r}
+wt <- select(nas_ros, 1:7,20) #isolate columns associated with wild type data in one dataframe 
+trt <- select(nas_ros, 1,11:16,20) 
+```
+
+Clean the wt dataframe:
+
+```{r}
+wt <- gather(wt, 
+             arb, #new variable that will encompass the former column names (this variable is not important going forward)
+             ros, #new variable that will encompass the data under the former column names 
+             2:7, #perform this function in columns 2-7 
+             na.rm = FALSE, convert = FALSE) 
+wt <- select(wt, X, sec, ros) #modify wt such that arb is not included in new version of dataframe  
+names(wt)[names(wt) == 'X'] <- 'cycle' #changes name of variable
+names(wt)[names(wt) == 'wt'] <- 'ros' #changes name of variable
+wt$treat <- "wt" #create new variable in dataframe and add the value in quotes to every observation
+head(wt) #display top six rows of data
+```
+
+Clean the trt dataframe:
+
+```{r}
+trt <- gather(trt, arb, ros,2:7,na.rm = FALSE, convert = FALSE)
+names(trt)[names(trt) == 'X'] <- 'cycle' #changes name of variable
+names(trt)[names(trt) == 'trt'] <- 'ros' #changes name of variable
+trt <- select(trt, cycle, ros, sec)
+trt$treat <- "trt"
+head(trt) 
+```
+
+Combine the two cleaned dataframes into one:
+
+```{r}
+tidyros<-rbind(wt, trt) #combine the rows of two dataframes that share identical column names into new dataframe 
+tidyros$sec <- as.numeric(tidyros$sec) #coerce variable into being numeric 
+tidyros <- filter(tidyros, sec <= 3424) #filter dataframe to observations that occured before 3424 seconds
+tidyros$min <- tidyros$sec/60 #create new column that converts seconds to minutes 
+tidyros <-tidyros %>% mutate(across(starts_with("min"), round, 1)) #modify observations in min column to have one decimal place
+tidyros$min <- as.factor(tidyros$min) #coerce variable 'min' into being a factor 
+head(tidyros)
+```
+
+Summarize the newly reformatted dataframe, tidyros:
+
+```{r}
+sum <- tidyros %>% 
+  group_by(cycle, treat, min, .groups = TRUE) %>% #define which groups' statistics will be calculated 
+  summarise(
+    obs = n(), #count the number of observations in each group 
+    meanT = mean(ros), #calculate the mean for each group
+    se = (sd(ros)/sqrt(obs))) #calculate the standard error of the mean for each group
+head(sum)
+```
+
+Reformat summary statistics dataframe:
+
+```{r}
+sum <- select(sum, 1:3,5:7) #select specific columns to go into new version of sum dataframe
+sum$min <- as.numeric(sum$min) #coerce min variable to be numeric 
+sum <- sum %>% mutate(across(starts_with("min"), round, 2)) #round min variable observations to two digits 
+sum <- arrange(sum, by_group = treat) #arrange table by treat variable 
+sum$treat <- gsub("trt","OE-CsHDG5-8", sum$treat) #in treat variable, change observations from "trt" to "OE-CsHDG5-8"
+sum$treat <- as.factor(sum$treat)
+sum <- mutate(sum,treat = relevel(treat, ref = "wt")) #coerce wt into the reference level
+sum$meanT <- sum$meanT/100 #scale mean values down by 100 
+sum$se   <- sum$se/100 #scale standard error of the mean down by 100
+head(sum)
+```
+
+# Line graph
+
+Create some objects for the figure:
+
+```{r}
+geneA <- expression(paste(bold("wt")))
+geneB <- expression(paste(bolditalic("OE-CsHDG5-8")))
+```
+
+```{r}
+rosline <- ggplot(sum, aes(x = min, y = meanT, color = treat)) + 
+  geom_errorbar(aes(x = min, ymin = meanT - se, ymax = meanT + se)) +
+  geom_point(size =4) + 
+  geom_line(mapping = aes(x=min, y = meanT, color = treat), size =2) +
+  ylab("RLUs (x100)") + 
+  xlab("Time (minutes)") + 
+  ggtitle("AtPep3") + 
+  scale_fill_continuous(name = "", labels = c(geneA, geneB)) +  
+  scale_x_continuous(limits = c(1,33),
+                     breaks = seq(1, 33, by = 2)) +
+scale_y_continuous(limits = c(0,28),
+                      breaks = seq(0,28, by = 4)) +
+  scale_color_hue(labels = c(geneA, geneB)) + 
+theme(
+    axis.line.y.left = element_line(color = "black"), 
+    axis.title.y.left = element_text(color="black", face="bold", size=18),
+    axis.text.y.left = element_text(color="black", face="bold", size =18),
+    axis.text.x = element_text(color="black", face="bold", size =14, vjust=0.5),  #
+    axis.ticks = element_line(size = 1), #size of tick on x and y axes
+    axis.ticks.length = unit(-0.25, "cm"), #makes ticks go inside the plot 
+    axis.title.x=element_text(color="black",face = "bold", size=18, vjust =0.6), 
+    plot.title = element_text(face="bold", size=19, hjust = 0.5), 
+    plot.caption = element_text(size=12.5, colour ="red"),
+    plot.tag = element_text(color="black",face = "bold", size=18),
+    axis.line = element_line(colour = "black"),
+    legend.position = "bottom",
+    legend.title = element_blank(),
+    legend.text = element_text(size = 16, face ="bold"),
+    panel.border = element_rect(colour = "black", fill=NA, size=1),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()) 
+
+rosline
+```
+
+# qPCR data analysis in R
+
+Download raw qPCR Cq values:
+
+```{r}
+urlfile7="https://raw.githubusercontent.com/apicellap/data/main/hd1_tissuetype_raw.csv"
+hd1<-read.csv(url(urlfile7)) 
+head(hd1)
+```
+
+:::{.callout-caution collapse="true"}
+## Expand to see my note about reproducing this example. 
+While this example is meant to be one that is reproducible, it is of particular importance with this example that the dataframe be set up in exactly the way I have laid it out for the following code to work correctly. See the dataframe at its location within my [github repo](https://github.com/apicellap/data/blob/main/hd1_tissuetype_raw.csv). Any changes to the the dataframe must be reflected in downstream code. 
+:::
+
+First step of qPCR calculations (for standard errors)
+
+```{r}
+ref_df<-filter(hd1, tissue == "root") #subset tissue by root (this is the arbitrary reference) to isolate and do calculations on its mean ct values 
+Gmean_ct_target <- mean(ref_df$target_mean_ct) #calculates means of the mean ct values in the target gene 
+Gmean_ct_hk <- mean(ref_df$hk_mean_ct)   #calculates means of the mean ct values in the housekeeping gene 
+ref_val <- Gmean_ct_target -Gmean_ct_hk     #calculate the reference ∆ct value
+ref_val
+
+hd1$delta_ct <- (hd1$target_mean_ct - hd1$hk_mean_ct) #create new column for  ∆ct to contain the newly calculated values 
+hd1$delta_delta_ct <- (hd1$delta_ct - ref_val)  #create new column for  ∆∆ct to contain the newly calculated values
+hd1$expression <- (2^-hd1$delta_delta_ct) #calculate the expression data 
+```
+
+View dataframe: 
+```{r}
+#| code-fold: true
+DT::datatable(hd1,extensions = 'FixedColumns',
+           options = list(
+    dom = 't',
+    scrollX = TRUE,
+    fixedColumns = TRUE))
+```
+
+
+```{r}
+table1<-summarise(
+  group_by(hd1, tissue), 
+  obs = n(),
+  mean = mean(expression), 
+  SE =(sd(expression))/sqrt(obs)) #multiple statistics can be calculated within summarise 
+table1
+
+tab2_exp<-summarise(
+  group_by(hd1, tissue), 
+  target_mean = mean(target_mean_ct), 
+  hk_mean = mean(hk_mean_ct))
+tab2_exp
+
+tab2_exp$delta_ct <- (tab2_exp$target_mean- tab2_exp$hk_mean)
+tab2_exp
+
+ref_tab <- filter(tab2_exp, tissue == "root")
+ref_val <- ref_tab$delta_ct
+ref_val
+
+tab2_exp$delta_delta_ct <- (tab2_exp$delta_ct - ref_val )
+tab2_exp$expression <- (2^(-tab2_exp$delta_delta_ct))
+tab2_exp
+
+complete_tab <- data.frame(tab2_exp, table1$SE)
+complete_tab
+
+complete_tab = rename(complete_tab, se = table1.SE)
+```
+
+T-tests:
+
+```{r}
+root_flower <- subset(hd1, tissue != "leaf")
+root_leaf <- subset(hd1, tissue != "flower")
+
+R_F<-t.test(expression ~ tissue, data = root_flower)
+R_F$p.value #print p-value for root vs flower t-test
+gtools::stars.pval(R_F$p.value) -> R_Fp #object that encompasses p-value symbol
+
+R_L<-t.test(expression ~ tissue, data = root_leaf)
+R_L$p.value #print p-value for root vs leaf t-test
+gtools::stars.pval(R_L$p.value) -> R_Lp 
+
+
+
+```
+
+Plot the data:
+
+```{r}
+ggtitle.1 <- expression(paste(bolditalic("HDG5")))
+
+hd1.plot <-ggplot(complete_tab, aes(x = tissue, y = expression)) + 
+  geom_bar(stat = 'identity', fill = "#82807E", color = "black", size =1) + 
+  geom_errorbar(aes(x = tissue, ymin = expression - se, ymax = expression + se, width=0.1), size = 1) +
+  xlab("") + 
+  ylab("Relative expression") + 
+  ggtitle(ggtitle.1) +
+  scale_x_discrete(limits = c("root", "leaf", "flower"), 
+                   labels = c("Root","Leaf", "Flower")) + 
+  scale_y_continuous(
+    limits = c(0,32),
+    breaks=c(0,4,8,12,16,20,24,28,32)) + 
+   theme(
+    axis.line.y.left = element_line(color = "black"), #color of left axis line
+    axis.title.y.left = element_text(color="black", face="bold", size=18), #color, face, and size of y axis title
+    axis.text.y.left = element_text(color="black", face="bold", size =18), #color, face, and size of y axis values
+    axis.text.x = element_text(color="black", face="bold", size = 18),  #color, face, and size of y axis values
+    axis.ticks = element_line(size = 1), #size of tick on x and y axes
+    axis.ticks.length = unit(-0.25, "cm"), #makes ticks go inside the plot 
+    axis.title.x=element_text(color="black",size=18), #color, size of x axis title (not included)
+    plot.title = element_text(face="bold", size=19, hjust = 0.5), 
+    plot.caption = element_text(size=12.5, colour ="red"),
+    axis.line = element_line(colour = "black"),
+    panel.border = element_rect(colour = "black", fill=NA, size=1),
+    # panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.background = element_blank()) + 
+  annotate("text", x =2, y = 5, label = R_Lp, size = 8) +
+  annotate("text", x = 3, y = 28, label = R_Fp, size = 8) 
+
+hd1.plot 
+```
+
+# Session information
+
+```{r session}
+sessionInfo()
+```
